@@ -58,20 +58,26 @@ const loginValidationRules = [
 
 // Middleware to check if the user can bypass login page
 function checkAlreadyAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-       res.redirect("/secrets")
-    } else {
-        next();
-    }
+	if (req.isAuthenticated()) {
+		console.log("User is already authenticated, redirecting to secrets page");
+		res.redirect("/secrets");
+	} else {
+		console.log("User is not authenticated, allowing access to login page");
+		next();
+	}
 }
 
 // Middleware to check if the user is authenticated
 function checkAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-        next();
-    } else {
-        res.redirect("/login");
-    }
+	if (req.isAuthenticated()) {
+		console.log("User is allowed to view this page");
+		next();
+	} else {
+		console.log(
+			"User is not allowed to view this page, redirecting to login page"
+		);
+		res.redirect("/login");
+	}
 }
 
 // connect to mongo database and define user schema
