@@ -26,7 +26,6 @@ app.use(
 		store: MongoStore.create({
 			mongoUrl: db_url,
 			autoReconnect: true,
-			touchAfter: -1,
 		}),
 	})
 );
@@ -83,6 +82,25 @@ function checkAuthenticated(req, res, next) {
 		);
 		res.redirect("/login");
 	}
+}
+
+function customLogout(req, res, next) {
+    if (req.session) {
+        req.session.destroy((err) => {
+            if (err) {
+                return next(err);
+            } else {
+                req.logout((err) =>{
+					if (err) {
+						return next(err);
+					}
+				});
+                return res.redirect("/");
+            }
+        });
+    } else {
+        return res.redirect("/");
+    }
 }
 
 // connect to mongo database and define user schema
@@ -179,12 +197,4 @@ app.get("/secrets", checkAuthenticated, (req, res) => {
 });
 
 // Logout route redirects to home page
-app.get("/logout", (req, res) => {
-	req.logout((err) => {
-		if (err) {
-			console.log(err);
-		}
-	});
-
-	res.redirect("/");
-});
+app.get("/logout", customLogout);
