@@ -95,10 +95,14 @@ app.get("/", (req, res) => {
 
 // Login GET route renders login page
 app.get("/login", (req, res) => {
-	if (req.isAuthenticated()) {
-		res.redirect("/secrets");
-	} else{
-		res.render("login");
+	try {
+		if (req.isAuthenticated()) {
+			res.redirect("/secrets");
+		} else {
+			res.render("login");
+		}
+	} catch {
+		console.log(err);
 	}
 });
 
