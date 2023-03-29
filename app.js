@@ -56,10 +56,19 @@ const loginValidationRules = [
 	body("password").notEmpty().withMessage("Password cannot be empty."),
 ];
 
-// Middleware to check if the user is already authenticated
+// Middleware to check if the user can bypass login page
 function checkAlreadyAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
-       next();
+       res.redirect("/secrets")
+    } else {
+        next();
+    }
+}
+
+// Middleware to check if the user is authenticated
+function checkAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+        next();
     } else {
         res.redirect("/login");
     }
@@ -154,7 +163,7 @@ app.post(
 );
 
 // Secrets route renders secrets page
-app.get("/secrets", checkAlreadyAuthenticated, (req, res) => {
+app.get("/secrets", checkAuthenticated, (req, res) => {
 	res.render("secrets");
 });
 
