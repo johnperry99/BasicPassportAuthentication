@@ -90,11 +90,6 @@ function customLogout(req, res, next) {
             if (err) {
                 return next(err);
             } else {
-                req.logout((err) =>{
-					if (err) {
-						return next(err);
-					}
-				});
                 return res.redirect("/");
             }
         });
