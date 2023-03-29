@@ -26,6 +26,7 @@ app.use(
 		store: MongoStore.create({
 			mongoUrl: db_url,
 			autoReconnect: true,
+			touchAfter: -1,
 		}),
 	})
 );
@@ -179,12 +180,11 @@ app.get("/secrets", checkAuthenticated, (req, res) => {
 
 // Logout route redirects to home page
 app.get("/logout", (req, res) => {
-	if (req.isAuthenticated()) {
-		req.logout((err) => {
-			if (err) {
-				console.log(err);
-			}
-		});
-	}
+	req.logout((err) => {
+		if (err) {
+			console.log(err);
+		}
+	});
+
 	res.redirect("/");
 });
