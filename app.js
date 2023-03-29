@@ -98,8 +98,10 @@ app.get("/login", (req, res) => {
 	try {
 		if (req.isAuthenticated()) {
 			res.redirect("/secrets");
+			console.log("Already logged in");
 		} else {
 			res.render("login");
+			console.log("Not logged in");
 		}
 	} catch {
 		console.log(err);
@@ -155,8 +157,10 @@ app.post(
 // Secrets route renders secrets page
 app.get("/secrets", (req, res) => {
 	if (req.isAuthenticated()) {
+		console.log("access to secrets confirmed");
 		res.render("secrets");
 	} else {
+		console.log("access to secrets denied");
 		res.redirect("/login");
 	}
 });
