@@ -94,19 +94,13 @@ app.get("/", (req, res) => {
 });
 
 // Login GET route renders login page
-app.get(
-	"/login",
-	(req, res, next) => {
-		if (req.isAuthenticated()) {
-			res.redirect("/secrets");
-		} else {
-			next();
-		}
-	},
-	(_req, res) => {
+app.get("/login", (req, res) => {
+	if (req.isAuthenticated()) {
+		res.redirect("/secrets");
+	} else{
 		res.render("login");
 	}
-);
+});
 
 // Register GET route renders register page
 app.get("/register", (_req, res) => {
