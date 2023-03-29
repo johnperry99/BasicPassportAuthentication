@@ -179,10 +179,12 @@ app.get("/secrets", checkAuthenticated, (req, res) => {
 
 // Logout route redirects to home page
 app.get("/logout", (req, res) => {
-	req.logout((err) => {
-		if (err) {
-			console.log(err);
-		}
-	});
+	if (req.isAuthenticated()) {
+		req.logout((err) => {
+			if (err) {
+				console.log(err);
+			}
+		});
+	}
 	res.redirect("/");
 });
