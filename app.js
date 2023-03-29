@@ -56,6 +56,15 @@ const loginValidationRules = [
 	body("password").notEmpty().withMessage("Password cannot be empty."),
 ];
 
+// Middleware to check if the user is already authenticated
+function checkAlreadyAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+       next();
+    } else {
+        res.redirect("/login");
+    }
+}
+
 // connect to mongo database and define user schema
 mongoose
 	.connect(db_url, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -94,18 +103,8 @@ app.get("/", (req, res) => {
 });
 
 // Login GET route renders login page
-app.get("/login", (req, res) => {
-	try {
-		if (req.isAuthenticated()) {
-			res.redirect("/secrets");
-			console.log("Already logged in");
-		} else {
-			res.render("login");
-			console.log("Not logged in");
-		}
-	} catch {
-		console.log(err);
-	}
+app.get("/login", checkAlreadyAuthenticated, (req, res) => {
+	res.render("login");
 });
 
 // Register GET route renders register page
@@ -155,14 +154,8 @@ app.post(
 );
 
 // Secrets route renders secrets page
-app.get("/secrets", (req, res) => {
-	if (req.isAuthenticated()) {
-		console.log("access to secrets confirmed");
-		res.render("secrets");
-	} else {
-		console.log("access to secrets denied");
-		res.redirect("/login");
-	}
+app.get("/secrets", checkAlreadyAuthenticated, (req, res) => {
+	res.render("secrets");
 });
 
 // Logout route redirects to home page
