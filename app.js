@@ -7,8 +7,11 @@ const mongoose = require("mongoose");
 const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
+const MongoStore = require("connect-mongo");
 
 const app = express();
+const port = parseInt(process.env.PORT) || 3000;
+const db_url = process.env.DB_STRING;
 
 app.use(express.static("public"));
 app.set("view engine", "ejs");
@@ -20,15 +23,16 @@ app.use(
 		secret: process.env.SECRET,
 		resave: false,
 		saveUninitialized: false,
+		store: MongoStore.create({
+			mongoUrl: db_url,
+			autoReconnect: true,
+		}),
 	})
 );
 
 // set up passport
 app.use(passport.initialize());
 app.use(passport.session());
-
-const port = parseInt(process.env.PORT) || 3000;
-const db_url = process.env.DB_STRING;
 
 // Set up rate limiting
 const registerLimiter = rateLimit({
