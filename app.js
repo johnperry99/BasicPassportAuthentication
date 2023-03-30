@@ -1,16 +1,19 @@
 require("dotenv").config();
 const express = require("express");
-const rateLimit = require("express-rate-limit");
-const { body, validationResult } = require("express-validator");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
 const session = require("express-session");
 const passport = require("passport");
-const passportLocalMongoose = require("passport-local-mongoose");
 const MongoStore = require("connect-mongo");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const findOrCreate = require("mongoose-findorcreate");
-const mongooseEncryption = require("mongoose-encryption");
+const User = require(__dirname + "/models/User");
+const { registerLimiter, loginLimiter } = require(__dirname + "/middleware/rateLimit");
+const {
+	registrationValidationRules,
+	loginValidationRules,
+} = require(__dirname + "/middleware/inputValidation");
+const {checkAlreadyAuthenticated, checkAuthenticated, customLogout} = require(__dirname + "/middleware/auth");
+const authRoutes = require(__dirname + "/routes/auth");
 
 const app = express();
 const port = parseInt(process.env.PORT) || 3000;
@@ -37,70 +40,7 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Set up rate limiting
-const registerLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 100, // Limit each IP to 100 requests per windowMs
-	message: "Too many registration attempts, please try again later.",
-});
-
-const loginLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 100, // Limit each IP to 100 requests per windowMs
-	message: "Too many login attempts, please try again later.",
-});
-
-// Set up input validation rules
-const registrationValidationRules = [
-	body("username").isEmail().withMessage("Please enter a valid email address."),
-	body("password")
-		.isLength({ min: 8 })
-		.withMessage("Password must be at least 8 characters."),
-];
-
-const loginValidationRules = [
-	body("username").isEmail().withMessage("Please enter a valid email address."),
-	body("password").notEmpty().withMessage("Password cannot be empty."),
-];
-
-// Middleware to check if the user can bypass login page
-function checkAlreadyAuthenticated(req, res, next) {
-	if (req.isAuthenticated()) {
-		console.log("User is already authenticated, redirecting to secrets page");
-		res.redirect("/secrets");
-	} else {
-		console.log("User is not authenticated, allowing access to login page");
-		next();
-	}
-}
-
-// Middleware to check if the user is authenticated
-function checkAuthenticated(req, res, next) {
-	if (req.isAuthenticated()) {
-		console.log("User is allowed to view this page");
-		next();
-	} else {
-		console.log(
-			"User is not allowed to view this page, redirecting to login page"
-		);
-		res.redirect("/login");
-	}
-}
-
-// Middleware to log out user
-function customLogout(req, res, next) {
-	if (req.session) {
-		req.session.destroy((err) => {
-			if (err) {
-				return next(err);
-			} else {
-				return res.redirect("/");
-			}
-		});
-	} else {
-		return res.redirect("/");
-	}
-}
+app.use(authRoutes);
 
 // connect to mongo database and define user schema
 mongoose
@@ -115,23 +55,6 @@ mongoose
 	.catch((err) => {
 		console.log(err);
 	});
-
-const userSchema = mongoose.Schema({
-	email: String,
-	password: String,
-	secret: String,
-});
-
-// use passport-local-mongoose to add methods to user schema
-userSchema.plugin(passportLocalMongoose);
-userSchema.plugin(findOrCreate);
-userSchema.plugin(mongooseEncryption, {
-	secret: process.env.SECRET,
-	encryptedFields: ["secret"],
-});
-
-// create model
-const User = new mongoose.model("User", userSchema);
 
 // create local strategy for passport
 passport.use(User.createStrategy());
@@ -187,21 +110,6 @@ passport.use(
 	)
 );
 
-// Google authentication routes
-app.get(
-	"/auth/google",
-	checkAlreadyAuthenticated,
-	passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-app.get(
-	"/auth/google/callback",
-	passport.authenticate("google", { failureRedirect: "/" }),
-	(req, res) => {
-		res.redirect("/secrets");
-	}
-);
-
 // Home GET route renders home page
 app.get("/", (req, res) => {
 	res.render("home");
@@ -236,47 +144,6 @@ app.post("/submit", checkAuthenticated, async (req, res) => {
 	}
 });
 
-// Register POST route connects to database to check if user exists and if password is correct
-app.post(
-	"/register",
-	registerLimiter,
-	registrationValidationRules,
-	async (req, res) => {
-		try {
-			const errors = validationResult(req);
-			if (!errors.isEmpty()) {
-				return res.status(400).json({ errors: errors.array() });
-			}
-			await User.register({ username: req.body.username }, req.body.password);
-			passport.authenticate("local")(req, res, () => {
-				res.redirect("/secrets");
-			});
-		} catch (err) {
-			console.log(err);
-			res.redirect("/register");
-		}
-	}
-);
-
-// Login route connects to database to check if user exists and if password is correct
-app.post(
-	"/login",
-	loginLimiter,
-	loginValidationRules,
-	(req, res, next) => {
-		const errors = validationResult(req);
-		if (!errors.isEmpty()) {
-			return res.status(400).json({ errors: errors.array() });
-		}
-		next();
-	},
-	passport.authenticate("local", {
-		successRedirect: "/secrets",
-		failureRedirect: "/login",
-		session: true,
-	})
-);
-
 // Secrets route renders secrets page
 app.get("/secrets", checkAuthenticated, async (req, res) => {
 	try {
@@ -288,6 +155,3 @@ app.get("/secrets", checkAuthenticated, async (req, res) => {
 		console.log(err);
 	}
 });
-
-// Logout route redirects to home page
-app.get("/logout", customLogout);
