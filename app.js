@@ -10,6 +10,7 @@ const passportLocalMongoose = require("passport-local-mongoose");
 const MongoStore = require("connect-mongo");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const findOrCreate = require("mongoose-findorcreate");
+const mongooseEncryption = require("mongoose-encryption");
 
 const app = express();
 const port = parseInt(process.env.PORT) || 3000;
@@ -118,11 +119,16 @@ mongoose
 const userSchema = mongoose.Schema({
 	email: String,
 	password: String,
+	secret: String,
 });
 
 // use passport-local-mongoose to add methods to user schema
 userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);
+userSchema.plugin(mongooseEncryption, {
+	secret: process.env.SECRET,
+	encryptedFields: ["secret"],
+});
 
 // create model
 const User = new mongoose.model("User", userSchema);
@@ -190,7 +196,7 @@ app.get(
 
 app.get(
 	"/auth/google/callback",
-	passport.authenticate("google", { failureRedirect: "/login" }),
+	passport.authenticate("google", { failureRedirect: "/" }),
 	(req, res) => {
 		res.redirect("/secrets");
 	}
@@ -209,6 +215,25 @@ app.get("/login", checkAlreadyAuthenticated, (req, res) => {
 // Register GET route renders register page
 app.get("/register", (_req, res) => {
 	res.render("register");
+});
+
+app.get("/submit", checkAuthenticated, (req, res) => {
+	res.render("submit");
+});
+
+app.post("/submit", checkAuthenticated, async (req, res) => {
+	const submittedSecret = req.body.secret;
+	try {
+		user = await User.findById(req.user.id);
+		if (user) {
+			user.secret = submittedSecret;
+			await user.save();
+			res.redirect("/secrets");
+		}
+	} catch {
+		console.log(err);
+		res.redirect("/submit");
+	}
 });
 
 // Register POST route connects to database to check if user exists and if password is correct
@@ -253,8 +278,15 @@ app.post(
 );
 
 // Secrets route renders secrets page
-app.get("/secrets", checkAuthenticated, (req, res) => {
-	res.render("secrets");
+app.get("/secrets", checkAuthenticated, async (req, res) => {
+	try {
+		foundUsers = await User.find();
+		if (foundUsers) {
+			res.render("secrets", { usersWithSecrets: foundUsers });
+		}
+	} catch (err) {
+		console.log(err);
+	}
 });
 
 // Logout route redirects to home page
