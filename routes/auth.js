@@ -5,6 +5,8 @@ const {
 	customLogout,
 } = require("../middleware/auth");
 const { registerLimiter, loginLimiter } = require("../middleware/rateLimit");
+const { validationResult } = require("express-validator");
+const User = require("../models/User");
 
 const {
 	registrationValidationRules,
@@ -26,6 +28,34 @@ router.get(
 		res.redirect("/secrets");
 	}
 );
+// Login GET route renders login page
+router.get("/login", checkAlreadyAuthenticated, (req, res) => {
+	res.render("login");
+});
+
+// Login route connects to database to check if user exists and if password is correct
+router.post(
+	"/login",
+	loginLimiter,
+	loginValidationRules,
+	(req, res, next) => {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) {
+			return res.status(400).json({ errors: errors.array() });
+		}
+		next();
+	},
+	passport.authenticate("local", {
+		successRedirect: "/secrets",
+		failureRedirect: "/login",
+		session: true,
+	})
+);
+
+// Register GET route renders register page
+router.get("/register", (_req, res) => {
+	res.render("register");
+});
 
 // Register POST route connects to database to check if user exists and if password is correct
 router.post(
@@ -47,25 +77,6 @@ router.post(
 			res.redirect("/register");
 		}
 	}
-);
-
-// Login route connects to database to check if user exists and if password is correct
-router.post(
-	"/login",
-	loginLimiter,
-	loginValidationRules,
-	(req, res, next) => {
-		const errors = validationResult(req);
-		if (!errors.isEmpty()) {
-			return res.status(400).json({ errors: errors.array() });
-		}
-		next();
-	},
-	passport.authenticate("local", {
-		successRedirect: "/secrets",
-		failureRedirect: "/login",
-		session: true,
-	})
 );
 
 // Logout route redirects to home page

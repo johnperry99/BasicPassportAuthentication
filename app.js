@@ -7,13 +7,8 @@ const passport = require("passport");
 const MongoStore = require("connect-mongo");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const User = require(__dirname + "/models/User");
-const { registerLimiter, loginLimiter } = require(__dirname + "/middleware/rateLimit");
-const {
-	registrationValidationRules,
-	loginValidationRules,
-} = require(__dirname + "/middleware/inputValidation");
-const {checkAlreadyAuthenticated, checkAuthenticated, customLogout} = require(__dirname + "/middleware/auth");
 const authRoutes = require(__dirname + "/routes/auth");
+const userRoutes = require(__dirname + "/routes/user");
 
 const app = express();
 const port = parseInt(process.env.PORT) || 3000;
@@ -41,6 +36,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(authRoutes);
+app.use(userRoutes);
 
 // connect to mongo database and define user schema
 mongoose
@@ -109,49 +105,3 @@ passport.use(
 		}
 	)
 );
-
-// Home GET route renders home page
-app.get("/", (req, res) => {
-	res.render("home");
-});
-
-// Login GET route renders login page
-app.get("/login", checkAlreadyAuthenticated, (req, res) => {
-	res.render("login");
-});
-
-// Register GET route renders register page
-app.get("/register", (_req, res) => {
-	res.render("register");
-});
-
-app.get("/submit", checkAuthenticated, (req, res) => {
-	res.render("submit");
-});
-
-app.post("/submit", checkAuthenticated, async (req, res) => {
-	const submittedSecret = req.body.secret;
-	try {
-		user = await User.findById(req.user.id);
-		if (user) {
-			user.secret = submittedSecret;
-			await user.save();
-			res.redirect("/secrets");
-		}
-	} catch {
-		console.log(err);
-		res.redirect("/submit");
-	}
-});
-
-// Secrets route renders secrets page
-app.get("/secrets", checkAuthenticated, async (req, res) => {
-	try {
-		foundUsers = await User.find();
-		if (foundUsers) {
-			res.render("secrets", { usersWithSecrets: foundUsers });
-		}
-	} catch (err) {
-		console.log(err);
-	}
-});
